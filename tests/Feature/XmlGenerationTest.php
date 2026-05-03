@@ -18,7 +18,8 @@ it('generates the correct XML structure and calculates taxes for a standard invo
         emailCopy: 'test@example.com',
     );
 
-    $client = new InfileClient($config);
+    $httpFactory = new \GuzzleHttp\Psr7\HttpFactory();
+    $client = new InfileClient($config, new \GuzzleHttp\Client(), $httpFactory, $httpFactory);
 
     $invoice = Invoice::create()
         ->for(Recipient::withTaxId('12345678')->name('Juan Perez')->address('Ciudad 123'))

@@ -32,7 +32,8 @@ function createClientWithMock(array $responses, FelConfig $config = null): Infil
         nit: '99999999K',
     );
 
-    return new InfileClient($config, $guzzleClient);
+    $httpFactory = new \GuzzleHttp\Psr7\HttpFactory();
+    return new InfileClient($config, $guzzleClient, $httpFactory, $httpFactory);
 }
 
 it('throws InfileServiceUnavailableException on connection timeout', function () {

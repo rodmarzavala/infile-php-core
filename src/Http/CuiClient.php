@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace InfilePhp\Core\Http;
 
-use GuzzleHttp\Client;
-use GuzzleHttp\Exception\RequestException;
 use InfilePhp\Core\Exceptions\InfileAuthException;
 use InfilePhp\Core\Exceptions\InfileServiceUnavailableException;
 use InfilePhp\Core\FelConfig;
 use InfilePhp\Core\Sat\PersonData;
+use Psr\Http\Client\ClientExceptionInterface;
+use Psr\Http\Client\ClientInterface;
+use Psr\Http\Message\RequestFactoryInterface;
+use Psr\Http\Message\StreamFactoryInterface;
 
 /**
  * HTTP client for CUI (Código Único de Identificación) lookups.
@@ -29,8 +31,6 @@ use InfilePhp\Core\Sat\PersonData;
  */
 final class CuiClient
 {
-    private readonly Client $http;
-
     private ?string $jwtToken = null;
 
     /** Unix timestamp at which the cached token expires. */
@@ -42,13 +42,12 @@ final class CuiClient
     /** Default TTL if the API does not return `fecha_de_vencimiento`. */
     private const TOKEN_DEFAULT_TTL = 7_200;
 
-    public function __construct(private readonly FelConfig $config)
-    {
-        $this->http = new Client([
-            'connect_timeout' => 5,
-            'timeout'         => 30,
-        ]);
-    }
+    public function __construct(
+        private readonly FelConfig $config,
+        private readonly ClientInterface $http,
+        private readonly RequestFactoryInterface $requestFactory,
+        private readonly StreamFactoryInterface $streamFactory,
+    ) {}
 
     /**
      * Look up a person by their CUI (national ID number).
@@ -62,38 +61,48 @@ final class CuiClient
     {
         $token = $this->getToken();
 
+        $boundary = bin2hex(random_bytes(16));
+        $body = "--{$boundary}\r\n" .
+                "Content-Disposition: form-data; name=\"cui\"\r\n\r\n" .
+                "{$cui}\r\n" .
+                "--{$boundary}--\r\n";
+
+        $request = $this->requestFactory->createRequest('POST', $this->config->endpointCui)
+            ->withHeader('Content-Type', "multipart/form-data; boundary={$boundary}")
+            ->withHeader('Authorization', "Bearer {$token}")
+            ->withBody($this->streamFactory->createStream($body));
+
         try {
-            $response = $this->http->post($this->config->endpointCui, [
-                'multipart' => [['name' => 'cui', 'contents' => $cui]],
-                'headers'   => ['Authorization' => "Bearer {$token}"],
-            ]);
-        } catch (RequestException $e) {
-            // On 401, invalidate token and retry once.
-            if ($e->getResponse()?->getStatusCode() === 401) {
+            $response = $this->http->sendRequest($request);
+
+            if ($response->getStatusCode() === 401) {
                 $this->invalidateToken();
                 $token = $this->getToken();
 
-                try {
-                    $response = $this->http->post($this->config->endpointCui, [
-                        'multipart' => [['name' => 'cui', 'contents' => $cui]],
-                        'headers'   => ['Authorization' => "Bearer {$token}"],
-                    ]);
-                } catch (RequestException $retryException) {
+                $request = $request->withHeader('Authorization', "Bearer {$token}");
+                $response = $this->http->sendRequest($request);
+                
+                if ($response->getStatusCode() >= 400) {
                     throw new InfileServiceUnavailableException(
-                        message: "CUI lookup endpoint unreachable: {$retryException->getMessage()}",
+                        message: "CUI lookup endpoint returned {$response->getStatusCode()}",
                         endpoint: $this->config->endpointCui,
-                        statusCode: $retryException->getResponse()?->getStatusCode() ?? 0,
-                        previous: $retryException,
+                        statusCode: $response->getStatusCode(),
                     );
                 }
-            } else {
+            } elseif ($response->getStatusCode() >= 400) {
                 throw new InfileServiceUnavailableException(
-                    message: "CUI lookup endpoint unreachable: {$e->getMessage()}",
+                    message: "CUI lookup endpoint returned {$response->getStatusCode()}",
                     endpoint: $this->config->endpointCui,
-                    statusCode: $e->getResponse()?->getStatusCode() ?? 0,
-                    previous: $e,
+                    statusCode: $response->getStatusCode(),
                 );
             }
+        } catch (ClientExceptionInterface $e) {
+            throw new InfileServiceUnavailableException(
+                message: "CUI lookup endpoint unreachable: {$e->getMessage()}",
+                endpoint: $this->config->endpointCui,
+                statusCode: 0,
+                previous: $e,
+            );
         }
 
         $decoded = json_decode((string) $response->getBody(), associative: true, flags: JSON_THROW_ON_ERROR);
@@ -156,18 +165,34 @@ final class CuiClient
      */
     private function authenticate(): void
     {
+        $boundary = bin2hex(random_bytes(16));
+        $body = "--{$boundary}\r\n" .
+                "Content-Disposition: form-data; name=\"prefijo\"\r\n\r\n" .
+                "{$this->config->signUser}\r\n" .
+                "--{$boundary}\r\n" .
+                "Content-Disposition: form-data; name=\"llave\"\r\n\r\n" .
+                "{$this->config->apiKey}\r\n" .
+                "--{$boundary}--\r\n";
+
+        $request = $this->requestFactory->createRequest('POST', $this->config->endpointCuiAuth)
+            ->withHeader('Content-Type', "multipart/form-data; boundary={$boundary}")
+            ->withBody($this->streamFactory->createStream($body));
+
         try {
-            $response = $this->http->post($this->config->endpointCuiAuth, [
-                'multipart' => [
-                    ['name' => 'prefijo', 'contents' => $this->config->signUser],
-                    ['name' => 'llave',   'contents' => $this->config->apiKey],
-                ],
-            ]);
-        } catch (RequestException $e) {
+            $response = $this->http->sendRequest($request);
+            
+            if ($response->getStatusCode() >= 400) {
+                throw new InfileServiceUnavailableException(
+                    message: "CUI auth endpoint returned {$response->getStatusCode()}",
+                    endpoint: $this->config->endpointCuiAuth,
+                    statusCode: $response->getStatusCode(),
+                );
+            }
+        } catch (ClientExceptionInterface $e) {
             throw new InfileServiceUnavailableException(
                 message: "CUI auth endpoint unreachable: {$e->getMessage()}",
                 endpoint: $this->config->endpointCuiAuth,
-                statusCode: $e->getResponse()?->getStatusCode() ?? 0,
+                statusCode: 0,
                 previous: $e,
             );
         }

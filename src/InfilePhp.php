@@ -28,17 +28,30 @@ final class InfilePhp
 
     private static ?EventDispatcherInterface $dispatcher = null;
 
+    private static ?\Psr\Http\Client\ClientInterface $httpClient = null;
+
+    private static ?\Psr\Http\Message\RequestFactoryInterface $requestFactory = null;
+
+    private static ?\Psr\Http\Message\StreamFactoryInterface $streamFactory = null;
+
     /**
      * Configure the SDK with credentials and settings.
      * Optionally provide a PSR-14 EventDispatcher (framework adapters inject their own).
      */
     public static function configure(
         FelConfig $config,
+        \Psr\Http\Client\ClientInterface $httpClient,
+        \Psr\Http\Message\RequestFactoryInterface $requestFactory,
+        \Psr\Http\Message\StreamFactoryInterface $streamFactory,
         ?EventDispatcherInterface $dispatcher = null,
     ): void {
         self::$config = $config;
-        self::$client = new InfileClient($config);
-        self::$cuiClient = new CuiClient($config);
+        self::$httpClient = $httpClient;
+        self::$requestFactory = $requestFactory;
+        self::$streamFactory = $streamFactory;
+        
+        self::$client = new InfileClient($config, $httpClient, $requestFactory, $streamFactory);
+        self::$cuiClient = new CuiClient($config, $httpClient, $requestFactory, $streamFactory);
         self::$dispatcher = $dispatcher;
     }
 
@@ -108,5 +121,35 @@ final class InfilePhp
         self::$client = null;
         self::$cuiClient = null;
         self::$dispatcher = null;
+        self::$httpClient = null;
+        self::$requestFactory = null;
+        self::$streamFactory = null;
+    }
+
+    public static function httpClient(): \Psr\Http\Client\ClientInterface
+    {
+        if (self::$httpClient === null) {
+            throw new \RuntimeException('InfilePhp has not been configured.');
+        }
+
+        return self::$httpClient;
+    }
+
+    public static function requestFactory(): \Psr\Http\Message\RequestFactoryInterface
+    {
+        if (self::$requestFactory === null) {
+            throw new \RuntimeException('InfilePhp has not been configured.');
+        }
+
+        return self::$requestFactory;
+    }
+
+    public static function streamFactory(): \Psr\Http\Message\StreamFactoryInterface
+    {
+        if (self::$streamFactory === null) {
+            throw new \RuntimeException('InfilePhp has not been configured.');
+        }
+
+        return self::$streamFactory;
     }
 }

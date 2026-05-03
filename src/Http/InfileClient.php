@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace InfilePhp\Core\Http;
 
-use GuzzleHttp\Client;
-use GuzzleHttp\Exception\RequestException;
 use InfilePhp\Core\Contracts\DteContract;
 use InfilePhp\Core\Dte\Recipient;
 use InfilePhp\Core\Enums\DteType;
@@ -15,6 +13,10 @@ use InfilePhp\Core\Exceptions\InfileAuthException;
 use InfilePhp\Core\Exceptions\InfileCertificationException;
 use InfilePhp\Core\Exceptions\InfileServiceUnavailableException;
 use InfilePhp\Core\FelConfig;
+use Psr\Http\Client\ClientExceptionInterface;
+use Psr\Http\Client\ClientInterface;
+use Psr\Http\Message\RequestFactoryInterface;
+use Psr\Http\Message\StreamFactoryInterface;
 
 /**
  * HTTP client for all Infile sign, certify, and cancel operations.
@@ -30,8 +32,6 @@ use InfilePhp\Core\FelConfig;
  */
 final class InfileClient
 {
-    private readonly Client $http;
-
     /** SAT FEL XML namespaces. */
     private const NS_DTE = 'http://www.sat.gob.gt/dte/fel/0.2.0';
 
@@ -40,13 +40,10 @@ final class InfileClient
 
     public function __construct(
         private readonly FelConfig $config,
-        ?Client $http = null,
-    ) {
-        $this->http = $http ?? new Client([
-            'connect_timeout' => 5,
-            'timeout'         => 30,
-        ]);
-    }
+        private readonly ClientInterface $http,
+        private readonly RequestFactoryInterface $requestFactory,
+        private readonly StreamFactoryInterface $streamFactory,
+    ) {}
 
     /**
      * Certify a DTE document using the configured flow (Unified or Separate).
@@ -84,22 +81,15 @@ final class InfileClient
             issuedAt: $issuedAt,
         );
 
-        try {
-            $response = $this->http->post($this->config->endpointUnified, [
-                'body'    => $xmlPayload,
-                'headers' => $this->buildUnifiedHeaders(idempotencyKey: "ANUL-{$idempotencyKey}"),
-            ]);
+        $response = $this->sendRequest(
+            method: 'POST',
+            url: $this->config->endpointUnified,
+            body: $xmlPayload,
+            headers: $this->buildUnifiedHeaders(idempotencyKey: "ANUL-{$idempotencyKey}"),
+        );
 
-            $data = $this->decodeJson((string) $response->getBody());
-            $this->assertUnifiedSuccess($data);
-        } catch (RequestException $e) {
-            throw new InfileServiceUnavailableException(
-                message: "Infile cancel endpoint unreachable: {$e->getMessage()}",
-                endpoint: $this->config->endpointUnified,
-                statusCode: $e->getResponse()?->getStatusCode() ?? 0,
-                previous: $e,
-            );
-        }
+        $data = $this->decodeJson((string) $response->getBody());
+        $this->assertUnifiedSuccess($data);
     }
 
     /**
@@ -111,17 +101,20 @@ final class InfileClient
         $start = hrtime(true);
 
         try {
-            // Use the NIT lookup endpoint — it accepts POST and won't waste a transaction.
-            $this->http->post($this->config->endpointNit, [
-                'timeout' => 5,
-                'json'    => [
+            $this->sendRequest(
+                method: 'POST',
+                url: $this->config->endpointNit,
+                body: json_encode([
                     'emisor_codigo' => $this->config->signUser,
                     'emisor_clave'  => $this->config->apiKey,
                     'nit_consulta'  => '0',
-                ],
-            ]);
-        } catch (RequestException) {
-            // A 4xx still means the service responded — timing is still valid.
+                ], JSON_THROW_ON_ERROR),
+                headers: ['Content-Type' => 'application/json'],
+            );
+        } catch (ClientExceptionInterface) {
+            // A network exception means unreachable, but we still return timing for now,
+            // or perhaps -1. The docblock says -1.
+            return -1;
         }
 
         return (int) round((hrtime(true) - $start) / 1_000_000);
@@ -144,19 +137,12 @@ final class InfileClient
     {
         $xml = $this->buildDteXml($dte);
 
-        try {
-            $response = $this->http->post($this->config->endpointUnified, [
-                'body'    => $xml,
-                'headers' => $this->buildUnifiedHeaders(idempotencyKey: $idempotencyKey),
-            ]);
-        } catch (RequestException $e) {
-            throw new InfileServiceUnavailableException(
-                message: "Infile unified endpoint unreachable: {$e->getMessage()}",
-                endpoint: $this->config->endpointUnified,
-                statusCode: $e->getResponse()?->getStatusCode() ?? 0,
-                previous: $e,
-            );
-        }
+        $response = $this->sendRequest(
+            method: 'POST',
+            url: $this->config->endpointUnified,
+            body: $xml,
+            headers: $this->buildUnifiedHeaders(idempotencyKey: $idempotencyKey),
+        );
 
         $data = $this->decodeJson((string) $response->getBody());
         $this->assertUnifiedSuccess($data);
@@ -171,25 +157,18 @@ final class InfileClient
         $signed = $this->sign($xml);
 
         // Step 2: Certify
-        $body = [
+        $body = json_encode([
             'nit_emisor'   => $this->config->nit,
             'correo_copia' => $this->config->emailCopy,
             'xml_dte'      => base64_encode($signed),
-        ];
+        ], JSON_THROW_ON_ERROR);
 
-        try {
-            $response = $this->http->post($this->config->endpointCertify, [
-                'json'    => $body,
-                'headers' => $this->buildSeparateCertifyHeaders(idempotencyKey: $idempotencyKey),
-            ]);
-        } catch (RequestException $e) {
-            throw new InfileServiceUnavailableException(
-                message: "Infile certify endpoint unreachable: {$e->getMessage()}",
-                endpoint: $this->config->endpointCertify,
-                statusCode: $e->getResponse()?->getStatusCode() ?? 0,
-                previous: $e,
-            );
-        }
+        $response = $this->sendRequest(
+            method: 'POST',
+            url: $this->config->endpointCertify,
+            body: $body,
+            headers: $this->buildSeparateCertifyHeaders(idempotencyKey: $idempotencyKey),
+        );
 
         $data = $this->decodeJson((string) $response->getBody());
         $this->assertNoInfileError($data);
@@ -205,26 +184,20 @@ final class InfileClient
      */
     private function sign(string $xml): string
     {
-        $body = [
+        $body = json_encode([
             'llave'        => $this->config->signKey,
             'archivo'      => base64_encode($xml),
             'codigo'       => $this->config->apiKey,
             'alias'        => $this->config->signUser,
             'es_anulacion' => 'N',
-        ];
+        ], JSON_THROW_ON_ERROR);
 
-        try {
-            $response = $this->http->post($this->config->endpointSign, [
-                'json' => $body,
-            ]);
-        } catch (RequestException $e) {
-            throw new InfileServiceUnavailableException(
-                message: "Infile sign endpoint unreachable: {$e->getMessage()}",
-                endpoint: $this->config->endpointSign,
-                statusCode: $e->getResponse()?->getStatusCode() ?? 0,
-                previous: $e,
-            );
-        }
+        $response = $this->sendRequest(
+            method: 'POST',
+            url: $this->config->endpointSign,
+            body: $body,
+            headers: ['Content-Type' => 'application/json'],
+        );
 
         $data = $this->decodeJson((string) $response->getBody());
         $this->assertNoInfileError($data);
@@ -233,6 +206,47 @@ final class InfileClient
         $signed = $data['xml_firmado'] ?? '';
 
         return base64_decode($signed, true) ?: $signed;
+    }
+
+    // -----------------------------------------------------------------------
+    // Private — HTTP wrapper
+    // -----------------------------------------------------------------------
+
+    /**
+     * @param array<string, string> $headers
+     * @throws InfileServiceUnavailableException
+     */
+    private function sendRequest(string $method, string $url, string $body, array $headers): \Psr\Http\Message\ResponseInterface
+    {
+        $request = $this->requestFactory->createRequest($method, $url);
+        
+        foreach ($headers as $name => $value) {
+            $request = $request->withHeader($name, $value);
+        }
+        
+        $request = $request->withBody($this->streamFactory->createStream($body));
+
+        try {
+            $response = $this->http->sendRequest($request);
+            
+            // Guzzle throws on 4xx/5xx, PSR-18 does not. We emulate Guzzle's behavior for 5xx.
+            if ($response->getStatusCode() >= 500) {
+                throw new InfileServiceUnavailableException(
+                    message: "Infile endpoint returned {$response->getStatusCode()}",
+                    endpoint: $url,
+                    statusCode: $response->getStatusCode(),
+                );
+            }
+            
+            return $response;
+        } catch (ClientExceptionInterface $e) {
+            throw new InfileServiceUnavailableException(
+                message: "Infile endpoint unreachable: {$e->getMessage()}",
+                endpoint: $url,
+                statusCode: 0,
+                previous: $e,
+            );
+        }
     }
 
     // -----------------------------------------------------------------------
@@ -550,7 +564,7 @@ final class InfileClient
     private function decodeJson(string $body): array
     {
         /** @var array<string, mixed>|null $decoded */
-        $decoded = json_decode($body, associative: true, flags: JSON_THROW_ON_ERROR);
+        $decoded = json_decode($body, associative: true);
 
         return is_array($decoded) ? $decoded : [];
     }

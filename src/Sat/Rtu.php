@@ -29,25 +29,35 @@ final class Rtu
     public static function lookupNit(string $nit): TaxpayerData
     {
         $config = InfilePhp::config();
+        $http = InfilePhp::httpClient();
+        $requestFactory = InfilePhp::requestFactory();
+        $streamFactory = InfilePhp::streamFactory();
 
-        $http = new \GuzzleHttp\Client([
-            'connect_timeout' => 5,
-            'timeout'         => 15,
-        ]);
+        $body = json_encode([
+            'emisor_codigo' => $config->signUser,
+            'emisor_clave'  => $config->apiKey,
+            'nit_consulta'  => $nit,
+        ], JSON_THROW_ON_ERROR);
+
+        $request = $requestFactory->createRequest('POST', $config->endpointNit)
+            ->withHeader('Content-Type', 'application/json')
+            ->withBody($streamFactory->createStream($body));
 
         try {
-            $response = $http->post($config->endpointNit, [
-                'json' => [
-                    'emisor_codigo' => $config->signUser,
-                    'emisor_clave'  => $config->apiKey,
-                    'nit_consulta'  => $nit,
-                ],
-            ]);
-        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            $response = $http->sendRequest($request);
+            
+            if ($response->getStatusCode() >= 400) {
+                throw new \InfilePhp\Core\Exceptions\InfileServiceUnavailableException(
+                    message: "NIT lookup endpoint returned {$response->getStatusCode()}",
+                    endpoint: $config->endpointNit,
+                    statusCode: $response->getStatusCode(),
+                );
+            }
+        } catch (\Psr\Http\Client\ClientExceptionInterface $e) {
             throw new \InfilePhp\Core\Exceptions\InfileServiceUnavailableException(
                 message: "NIT lookup endpoint unreachable: {$e->getMessage()}",
                 endpoint: $config->endpointNit,
-                statusCode: $e->getResponse()?->getStatusCode() ?? 0,
+                statusCode: 0,
                 previous: $e,
             );
         }
