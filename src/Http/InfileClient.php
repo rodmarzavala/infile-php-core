@@ -127,6 +127,15 @@ final class InfileClient
         return (int) round((hrtime(true) - $start) / 1_000_000);
     }
 
+    /**
+     * Generate the raw, unsigned XML for a given DTE.
+     * Useful for previewing or XSD validation before sending.
+     */
+    public function getUnsignedXml(DteContract $dte): string
+    {
+        return $this->buildDteXml($dte);
+    }
+
     // -----------------------------------------------------------------------
     // Private — certification flows
     // -----------------------------------------------------------------------
