@@ -4,23 +4,23 @@
 [![PHP Version Require](https://img.shields.io/packagist/php-v/rodmarzavala/infile-php-core)](https://packagist.org/packages/rodmarzavala/infile-php-core)
 [![License](https://img.shields.io/packagist/l/rodmarzavala/infile-php-core)](https://packagist.org/packages/rodmarzavala/infile-php-core)
 
-The official, framework-agnostic PHP 8.2+ SDK for Guatemala's electronic invoicing system (FEL - Factura Electrónica en Línea) using Infile S.A. as the certifying entity.
+El SDK oficial para PHP 8.2+ de facturación electrónica en línea (FEL) de Guatemala, utilizando a Infile S.A. como certificador. Este paquete es agnóstico y no depende de ningún framework.
 
-> **Note:** This repository is a read-only split of the main `infile-php` monorepo. Please submit issues and pull requests to the [main repository](https://github.com/rodmarzavala/infile-php).
+> **Nota:** Este repositorio es una división de solo lectura (read-only split) del monorepo principal `infile-php`. Por favor, envía tus *issues* y *pull requests* al [repositorio principal](https://github.com/rodmarzavala/infile-php).
 
-## Installation
+## Instalación
 
 ```bash
 composer require rodmarzavala/infile-php-core
 ```
 
-## Documentation
+## Documentación
 
-For full documentation, quickstart guides, and API reference, please visit our official documentation site:
+Para acceder a la documentación completa, guías de inicio rápido y referencia de la API, por favor visita nuestro sitio oficial:
 
-**👉 [Official Documentation (rodmarzavala.github.io/infile-php)](https://rodmarzavala.github.io/infile-php/)**
+**👉 [Documentación Oficial (rodmarzavala.github.io/infile-php)](https://rodmarzavala.github.io/infile-php/)**
 
-## Usage Example
+## Ejemplo de Uso
 
 ```php
 use InfilePhp\Core\Dte\Invoice;
