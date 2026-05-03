@@ -4,7 +4,7 @@
 [![PHP Version Require](https://img.shields.io/packagist/php-v/rodmarzavala/infile-php-core)](https://packagist.org/packages/rodmarzavala/infile-php-core)
 [![License](https://img.shields.io/packagist/l/rodmarzavala/infile-php-core)](https://packagist.org/packages/rodmarzavala/infile-php-core)
 
-El SDK oficial para PHP 8.2+ de facturación electrónica en línea (FEL) de Guatemala, utilizando a Infile S.A. como certificador. Este paquete es agnóstico y no depende de ningún framework.
+Un SDK open-source para PHP 8.2+ de facturación electrónica en línea (FEL) de Guatemala, utilizando a Infile S.A. como certificador. Este paquete es agnóstico y no depende de ningún framework.
 
 > **Nota:** Este repositorio es una división de solo lectura (read-only split) del monorepo principal `infile-php`. Por favor, envía tus *issues* y *pull requests* al [repositorio principal](https://github.com/rodmarzavala/infile-php).
 
@@ -16,9 +16,9 @@ composer require rodmarzavala/infile-php-core
 
 ## Documentación
 
-Para acceder a la documentación completa, guías de inicio rápido y referencia de la API, por favor visita nuestro sitio oficial:
+Para acceder a la documentación completa, guías de inicio rápido y referencia de la API, por favor visita nuestro sitio:
 
-**👉 [Documentación Oficial (rodmarzavala.github.io/infile-php)](https://rodmarzavala.github.io/infile-php/)**
+**👉 [Documentación del SDK (rodmarzavala.github.io/infile-php)](https://rodmarzavala.github.io/infile-php/)**
 
 ## Ejemplo de Uso
 
