@@ -1,0 +1,33 @@
+{
+    "name": "rodmarzavala/infile-php-core",
+    "description": "Core PHP 8.2 SDK for Guatemala's FEL electronic invoicing via Infile S.A.",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": ">=8.2",
+        "guzzlehttp/guzzle": "^7.10",
+        "psr/event-dispatcher": "^1.0",
+        "ramsey/uuid": "^4.9"
+    },
+    "autoload": {
+        "psr-4": {
+            "InfilePhp\\Core\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/",
+            "InfilePhp\\Core\\Tests\\": "tests/"
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "require-dev": {
+        "pestphp/pest": "^3.0"
+    },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    }
+}
