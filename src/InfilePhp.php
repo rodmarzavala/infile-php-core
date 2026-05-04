@@ -46,7 +46,7 @@ final class InfilePhp
         ?EventDispatcherInterface $dispatcher = null,
     ): void {
         self::$config = $config;
-        
+
         self::$httpClient = $httpClient ?? \Http\Discovery\Psr18ClientDiscovery::find();
         self::$requestFactory = $requestFactory ?? \Http\Discovery\Psr17FactoryDiscovery::findRequestFactory();
         self::$streamFactory = $streamFactory ?? \Http\Discovery\Psr17FactoryDiscovery::findStreamFactory();
