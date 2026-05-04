@@ -45,7 +45,7 @@ final class Rtu
 
         try {
             $response = $http->sendRequest($request);
-            
+
             if ($response->getStatusCode() >= 400) {
                 throw new \InfilePhp\Core\Exceptions\InfileServiceUnavailableException(
                     message: "NIT lookup endpoint returned {$response->getStatusCode()}",

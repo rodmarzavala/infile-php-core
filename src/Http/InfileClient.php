@@ -43,7 +43,8 @@ final class InfileClient
         private readonly ClientInterface $http,
         private readonly RequestFactoryInterface $requestFactory,
         private readonly StreamFactoryInterface $streamFactory,
-    ) {}
+    ) {
+    }
 
     /**
      * Certify a DTE document using the configured flow (Unified or Separate).
@@ -219,16 +220,16 @@ final class InfileClient
     private function sendRequest(string $method, string $url, string $body, array $headers): \Psr\Http\Message\ResponseInterface
     {
         $request = $this->requestFactory->createRequest($method, $url);
-        
+
         foreach ($headers as $name => $value) {
             $request = $request->withHeader($name, $value);
         }
-        
+
         $request = $request->withBody($this->streamFactory->createStream($body));
 
         try {
             $response = $this->http->sendRequest($request);
-            
+
             // Guzzle throws on 4xx/5xx, PSR-18 does not. We emulate Guzzle's behavior for 5xx.
             if ($response->getStatusCode() >= 500) {
                 throw new InfileServiceUnavailableException(
@@ -237,7 +238,7 @@ final class InfileClient
                     statusCode: $response->getStatusCode(),
                 );
             }
-            
+
             return $response;
         } catch (ClientExceptionInterface $e) {
             throw new InfileServiceUnavailableException(

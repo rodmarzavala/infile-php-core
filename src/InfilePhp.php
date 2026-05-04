@@ -49,7 +49,7 @@ final class InfilePhp
         self::$httpClient = $httpClient;
         self::$requestFactory = $requestFactory;
         self::$streamFactory = $streamFactory;
-        
+
         self::$client = new InfileClient($config, $httpClient, $requestFactory, $streamFactory);
         self::$cuiClient = new CuiClient($config, $httpClient, $requestFactory, $streamFactory);
         self::$dispatcher = $dispatcher;

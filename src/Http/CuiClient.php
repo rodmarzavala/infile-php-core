@@ -47,7 +47,8 @@ final class CuiClient
         private readonly ClientInterface $http,
         private readonly RequestFactoryInterface $requestFactory,
         private readonly StreamFactoryInterface $streamFactory,
-    ) {}
+    ) {
+    }
 
     /**
      * Look up a person by their CUI (national ID number).
@@ -81,7 +82,7 @@ final class CuiClient
 
                 $request = $request->withHeader('Authorization', "Bearer {$token}");
                 $response = $this->http->sendRequest($request);
-                
+
                 if ($response->getStatusCode() >= 400) {
                     throw new InfileServiceUnavailableException(
                         message: "CUI lookup endpoint returned {$response->getStatusCode()}",
@@ -180,7 +181,7 @@ final class CuiClient
 
         try {
             $response = $this->http->sendRequest($request);
-            
+
             if ($response->getStatusCode() >= 400) {
                 throw new InfileServiceUnavailableException(
                     message: "CUI auth endpoint returned {$response->getStatusCode()}",
