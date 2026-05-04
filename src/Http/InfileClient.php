@@ -30,7 +30,7 @@ use Psr\Http\Message\StreamFactoryInterface;
  *   Headers: UsuarioFirma, LlaveFirma, UsuarioApi, LlaveApi, identificador
  *   Body: FEL XML document (application/xml)
  */
-final class InfileClient
+class InfileClient
 {
     /** SAT FEL XML namespaces. */
     private const NS_DTE = 'http://www.sat.gob.gt/dte/fel/0.2.0';

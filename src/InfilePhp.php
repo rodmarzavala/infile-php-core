@@ -114,7 +114,15 @@ final class InfilePhp
     }
 
     /**
-     * Reset the SDK state (useful in tests).
+     * Swap the configured client with a test double.
+     */
+    public static function swapClient(InfileClient $client): void
+    {
+        self::$client = $client;
+    }
+
+    /**
+     * Completely reset the SDK configuration (useful for testing).
      */
     public static function reset(): void
     {
