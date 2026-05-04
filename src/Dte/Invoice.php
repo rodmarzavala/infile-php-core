@@ -109,6 +109,7 @@ final class Invoice implements DteContract
                 dteType: $this->getType(),
                 recipientTaxId: $this->recipient?->getTaxId() ?? 'CF',
                 idempotencyKey: $this->idempotencyKey,
+                xmlCertified: $response->xmlCertified,
             ));
 
             return $response;

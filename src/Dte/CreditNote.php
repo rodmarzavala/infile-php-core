@@ -83,6 +83,7 @@ final class CreditNote implements DteContract
                 dteType: $this->getType(),
                 recipientTaxId: $this->sourceInvoice?->getRecipient()?->getTaxId() ?? 'CF',
                 idempotencyKey: $this->idempotencyKey,
+                xmlCertified: $response->xmlCertified,
             ));
 
             return $response;

@@ -18,6 +18,7 @@ final readonly class DteIssued
         public readonly DteType $dteType,
         public readonly string $recipientTaxId,
         public readonly string $idempotencyKey,
+        public readonly string $xmlCertified = '',
     ) {
     }
 }

@@ -94,6 +94,7 @@ final class SmallTaxpayerInvoice implements DteContract
                 dteType: $this->getType(),
                 recipientTaxId: $this->recipient?->getTaxId() ?? 'CF',
                 idempotencyKey: $this->idempotencyKey,
+                xmlCertified: $response->xmlCertified,
             ));
 
             return $response;
