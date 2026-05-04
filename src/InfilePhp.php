@@ -40,18 +40,19 @@ final class InfilePhp
      */
     public static function configure(
         FelConfig $config,
-        \Psr\Http\Client\ClientInterface $httpClient,
-        \Psr\Http\Message\RequestFactoryInterface $requestFactory,
-        \Psr\Http\Message\StreamFactoryInterface $streamFactory,
+        ?\Psr\Http\Client\ClientInterface $httpClient = null,
+        ?\Psr\Http\Message\RequestFactoryInterface $requestFactory = null,
+        ?\Psr\Http\Message\StreamFactoryInterface $streamFactory = null,
         ?EventDispatcherInterface $dispatcher = null,
     ): void {
         self::$config = $config;
-        self::$httpClient = $httpClient;
-        self::$requestFactory = $requestFactory;
-        self::$streamFactory = $streamFactory;
+        
+        self::$httpClient = $httpClient ?? \Http\Discovery\Psr18ClientDiscovery::find();
+        self::$requestFactory = $requestFactory ?? \Http\Discovery\Psr17FactoryDiscovery::findRequestFactory();
+        self::$streamFactory = $streamFactory ?? \Http\Discovery\Psr17FactoryDiscovery::findStreamFactory();
 
-        self::$client = new InfileClient($config, $httpClient, $requestFactory, $streamFactory);
-        self::$cuiClient = new CuiClient($config, $httpClient, $requestFactory, $streamFactory);
+        self::$client = new InfileClient($config, self::$httpClient, self::$requestFactory, self::$streamFactory);
+        self::$cuiClient = new CuiClient($config, self::$httpClient, self::$requestFactory, self::$streamFactory);
         self::$dispatcher = $dispatcher;
     }
 
